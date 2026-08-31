@@ -83,17 +83,25 @@ function useProvider() {
     setError('');
 
     try {
-      console.log('useProvider.createJob() called with:', values);
       const response = await api.post('/provider/jobs', values);
-      console.log('Job created successfully:', response.data);
       return response.data?.data || null;
     } catch (createError) {
-      const errorMessage = createError?.response?.data?.message || createError?.message || 'Unable to create job';
+      const errData = createError?.response?.data;
+      let errorMessage = errData?.message || createError?.message || 'Unable to create job';
+
+      if (errData?.errors?.fieldErrors) {
+        const fieldDetails = Object.entries(errData.errors.fieldErrors)
+          .map(([f, m]) => `${f}: ${m.join(', ')}`)
+          .join('; ');
+        if (fieldDetails) {
+          errorMessage = `${errData.message || 'Validation error'} (${fieldDetails})`;
+        }
+      }
+
       console.error('Job creation failed:', {
         status: createError?.response?.status,
         message: errorMessage,
-        data: createError?.response?.data,
-        error: createError,
+        data: errData,
       });
       setError(errorMessage);
       return null;
@@ -110,7 +118,19 @@ function useProvider() {
       const response = await api.put(`/provider/jobs/${id}`, values);
       return response.data?.data || null;
     } catch (updateError) {
-      setError(updateError?.response?.data?.message || 'Unable to update job');
+      const errData = updateError?.response?.data;
+      let errorMessage = errData?.message || updateError?.message || 'Unable to update job';
+
+      if (errData?.errors?.fieldErrors) {
+        const fieldDetails = Object.entries(errData.errors.fieldErrors)
+          .map(([f, m]) => `${f}: ${m.join(', ')}`)
+          .join('; ');
+        if (fieldDetails) {
+          errorMessage = `${errData.message || 'Validation error'} (${fieldDetails})`;
+        }
+      }
+
+      setError(errorMessage);
       return null;
     } finally {
       setLoading(false);

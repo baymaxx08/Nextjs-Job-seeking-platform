@@ -31,6 +31,18 @@ function LoginForm() {
   const selectRole = (role) => {
     setSelectedRole(role);
     setValue('role', role, { shouldValidate: true });
+    setSubmitError('');
+  };
+
+  const fillDemo = (role) => {
+    selectRole(role);
+    if (role === 'provider') {
+      setValue('email', 'provider@techcorp.io', { shouldValidate: true });
+      setValue('password', 'Password123!', { shouldValidate: true });
+    } else {
+      setValue('email', 'alex.rivera@example.com', { shouldValidate: true });
+      setValue('password', 'Password123!', { shouldValidate: true });
+    }
   };
 
   const onSubmit = async (values) => {
@@ -41,7 +53,7 @@ function LoginForm() {
       const dashboardPath = payload?.user?.role === 'provider' ? '/provider/dashboard' : '/seeker/dashboard';
       router.push(dashboardPath);
     } catch (error) {
-      setSubmitError(error?.response?.data?.message || 'Unable to sign in');
+      setSubmitError(error?.response?.data?.message || 'Unable to sign in. Please verify your credentials.');
     }
   };
 
@@ -60,6 +72,29 @@ function LoginForm() {
         <button type="button" onClick={() => selectRole('provider')} className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${selectedRole === 'provider' ? 'bg-slate-950 text-white shadow-lg' : 'text-slate-600 hover:text-slate-950'}`}>
           Job Provider
         </button>
+      </div>
+
+      {/* Demo credentials helper banner */}
+      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5 text-xs text-blue-900">
+        <div className="flex items-center justify-between font-semibold">
+          <span>Quick Demo Access:</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fillDemo('provider')}
+              className="rounded-lg bg-blue-600 px-2.5 py-1 text-white font-medium hover:bg-blue-700 transition"
+            >
+              Fill Provider
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemo('seeker')}
+              className="rounded-lg bg-white border border-blue-200 text-blue-700 px-2.5 py-1 font-medium hover:bg-blue-100 transition"
+            >
+              Fill Seeker
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-4">

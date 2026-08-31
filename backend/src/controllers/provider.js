@@ -60,22 +60,64 @@ const providerProfileSchema = z.object({
   }, z.number().int().min(1800).max(currentYear).optional()),
 });
 
-const jobPayloadSchema = z.object({
-  title: z.string().trim().min(2),
-  description: z.string().trim().min(10),
-  requirements: z.string().trim().min(10),
-  responsibilities: optionalText(5000),
-  location: optionalText(120),
-  isRemote: booleanLike,
-  jobType: z.enum(['full-time', 'part-time', 'contract', 'internship']),
-  salaryMin: optionalNumber(),
-  salaryMax: optionalNumber(),
-  currency: z.string().trim().length(3).optional(),
-  experienceLevel: z.enum(['entry', 'mid', 'senior']),
-  status: z.enum(['open', 'closed', 'filled']).optional(),
-  applicationDeadline: z.string().optional().or(z.literal('')),
-  skills: z.union([z.array(z.string()), z.string()]).optional(),
-});
+const jobPayloadSchema = z
+  .object({
+    title: z.string({ required_error: 'Title is required' }).trim().min(2, 'Title must be at least 2 characters'),
+    description: z.string({ required_error: 'Description is required' }).trim().min(10, 'Description must be at least 10 characters'),
+    requirements: z.string({ required_error: 'Requirements are required' }).trim().min(10, 'Requirements must be at least 10 characters'),
+    responsibilities: optionalText(5000),
+    location: optionalText(120),
+    isRemote: booleanLike,
+    is_remote: booleanLike,
+    jobType: z.enum(['full-time', 'part-time', 'contract', 'internship']).optional(),
+    job_type: z.enum(['full-time', 'part-time', 'contract', 'internship']).optional(),
+    salaryMin: optionalNumber(),
+    salary_min: optionalNumber(),
+    salaryMax: optionalNumber(),
+    salary_max: optionalNumber(),
+    currency: z.preprocess((val) => {
+      if (!val || typeof val !== 'string') return 'USD';
+      const trimmed = val.trim().toUpperCase();
+      return trimmed.length ? trimmed : 'USD';
+    }, z.string().max(10).default('USD')),
+    experienceLevel: z.enum(['entry', 'mid', 'senior']).optional(),
+    experience_level: z.enum(['entry', 'mid', 'senior']).optional(),
+    status: z.enum(['open', 'closed', 'filled']).optional().default('open'),
+    applicationDeadline: z.string().optional().nullable().or(z.literal('')),
+    application_deadline: z.string().optional().nullable().or(z.literal('')),
+    skills: z.union([z.array(z.string()), z.string()]).optional(),
+  })
+  .transform((data) => {
+    const isRemote =
+      data.isRemote !== undefined
+        ? data.isRemote
+        : data.is_remote !== undefined
+        ? data.is_remote
+        : false;
+
+    const jobType = data.jobType || data.job_type || 'full-time';
+    const experienceLevel = data.experienceLevel || data.experience_level || 'mid';
+    const salaryMin = data.salaryMin !== undefined ? data.salaryMin : data.salary_min;
+    const salaryMax = data.salaryMax !== undefined ? data.salaryMax : data.salary_max;
+    const applicationDeadline = data.applicationDeadline || data.application_deadline || null;
+
+    return {
+      title: data.title,
+      description: data.description,
+      requirements: data.requirements,
+      responsibilities: data.responsibilities || null,
+      location: data.location || null,
+      isRemote: Boolean(isRemote),
+      jobType,
+      salaryMin: salaryMin !== undefined ? salaryMin : null,
+      salaryMax: salaryMax !== undefined ? salaryMax : null,
+      currency: data.currency || 'USD',
+      experienceLevel,
+      status: data.status || 'open',
+      applicationDeadline: applicationDeadline || null,
+      skills: data.skills || [],
+    };
+  });
 
 const jobIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),

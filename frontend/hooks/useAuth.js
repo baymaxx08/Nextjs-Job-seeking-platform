@@ -32,7 +32,11 @@ function useAuth() {
     const payload = response.data?.data;
 
     if (payload?.access_token) {
-      setSession({ user: payload.user, accessToken: payload.access_token });
+      setSession({
+        user: payload.user,
+        accessToken: payload.access_token,
+        refreshToken: payload.refresh_token,
+      });
       setAuthToken(payload.access_token);
     }
 
@@ -45,7 +49,11 @@ function useAuth() {
     const payload = response.data?.data;
 
     if (payload?.access_token) {
-      setSession({ user: payload.user, accessToken: payload.access_token });
+      setSession({
+        user: payload.user,
+        accessToken: payload.access_token,
+        refreshToken: payload.refresh_token,
+      });
       setAuthToken(payload.access_token);
     }
 
@@ -53,11 +61,18 @@ function useAuth() {
   };
 
   const refreshSession = async () => {
-    const response = await api.post('/auth/refresh-token');
+    const stored = useAuthStore.getState();
+    const response = await api.post('/auth/refresh-token', {
+      refreshToken: stored.refreshToken,
+    });
     const payload = response.data?.data;
 
     if (payload?.access_token) {
-      setSession({ user: payload.user, accessToken: payload.access_token });
+      setSession({
+        user: payload.user,
+        accessToken: payload.access_token,
+        refreshToken: payload.refresh_token,
+      });
       setAuthToken(payload.access_token);
     }
 

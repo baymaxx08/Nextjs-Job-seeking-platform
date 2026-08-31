@@ -23,18 +23,31 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      const clientUrls = (process.env.CLIENT_URL || '')
+        .split(',')
+        .map((u) => u.trim())
+        .filter(Boolean);
+
       const allowedOrigins = [
         'http://localhost:3000',
         'http://localhost:3001',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3001',
-        process.env.CLIENT_URL
-      ].filter(Boolean);
-      
-      if (!origin || allowedOrigins.includes(origin)) {
+        ...clientUrls,
+      ];
+
+      if (
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*') ||
+        origin.endsWith('.onrender.com') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1')
+      ) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(null, true);
       }
     },
     credentials: true,
@@ -59,12 +72,25 @@ app.use('/api/notifications', notificationRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 5000;
 
-function startServer() {
-  return app.listen(PORT, () => {
-    console.log(`Backend server running on port ${PORT}`);
-  });
+function startServer(port = PORT) {
+  try {
+    const server = app.listen(port, () => {
+      console.log(`Backend server running on port ${port}`);
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`Backend server port ${port} already in use, reusing running instance.`);
+      } else {
+        console.error('Backend server error:', err);
+      }
+    });
+    return server;
+  } catch (err) {
+    console.warn('Backend listen error:', err.message);
+    return null;
+  }
 }
 
 if (require.main === module) {

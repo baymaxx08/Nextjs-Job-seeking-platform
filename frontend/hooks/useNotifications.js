@@ -7,20 +7,32 @@ function useNotifications() {
   const { notifications, unreadCount, setNotifications, markNotificationRead, markAllRead } = useNotificationStore();
 
   const fetchNotifications = useCallback(async () => {
-    const response = await api.get('/notifications');
-    const payload = response.data?.data || {};
-    setNotifications(payload.notifications || []);
-    return payload.notifications || [];
+    try {
+      const response = await api.get('/notifications');
+      const payload = response.data?.data || {};
+      setNotifications(payload.notifications || []);
+      return payload.notifications || [];
+    } catch {
+      return [];
+    }
   }, [setNotifications]);
 
   const markAsRead = useCallback(async (id) => {
-    await api.put(`/notifications/${id}/read`);
-    markNotificationRead(id);
+    try {
+      await api.put(`/notifications/${id}/read`);
+      markNotificationRead(id);
+    } catch {
+      // ignore
+    }
   }, [markNotificationRead]);
 
   const markAllAsRead = useCallback(async () => {
-    await api.put('/notifications/read-all');
-    markAllRead();
+    try {
+      await api.put('/notifications/read-all');
+      markAllRead();
+    } catch {
+      // ignore
+    }
   }, [markAllRead]);
 
   return {

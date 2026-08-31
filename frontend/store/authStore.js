@@ -6,16 +6,18 @@ const useAuthStore = create(
     (set) => ({
       user: null,
       accessToken: null,
+      refreshToken: null,
       role: null,
       isAuthenticated: false,
       hasHydrated: false,
-      setSession: ({ user, accessToken }) =>
-        set({
+      setSession: ({ user, accessToken, refreshToken }) =>
+        set((state) => ({
           user,
           accessToken,
+          refreshToken: refreshToken !== undefined ? refreshToken : state.refreshToken,
           role: user?.role || null,
           isAuthenticated: Boolean(user && accessToken),
-        }),
+        })),
       setUser: (user) =>
         set((state) => ({
           user,
@@ -27,10 +29,17 @@ const useAuthStore = create(
           accessToken,
           isAuthenticated: Boolean(state.user && accessToken),
         })),
+      setTokens: (accessToken, refreshToken) =>
+        set((state) => ({
+          accessToken,
+          refreshToken: refreshToken || state.refreshToken,
+          isAuthenticated: Boolean(state.user && accessToken),
+        })),
       clearSession: () =>
         set({
           user: null,
           accessToken: null,
+          refreshToken: null,
           role: null,
           isAuthenticated: false,
         }),
@@ -42,6 +51,7 @@ const useAuthStore = create(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
         role: state.role,
         isAuthenticated: state.isAuthenticated,
       }),

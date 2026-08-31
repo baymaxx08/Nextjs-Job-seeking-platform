@@ -306,6 +306,7 @@ async function registerSeeker(req, res, next) {
       data: {
         user,
         access_token: accessToken,
+        refresh_token: refreshToken,
       },
       message: 'Seeker account created successfully',
       errors: null,
@@ -355,6 +356,7 @@ async function registerProvider(req, res, next) {
       data: {
         user,
         access_token: accessToken,
+        refresh_token: refreshToken,
       },
       message: 'Provider account created successfully',
       errors: null,
@@ -421,6 +423,7 @@ async function login(req, res, next) {
       data: {
         user: authUser,
         access_token: accessToken,
+        refresh_token: refreshToken,
       },
       message: 'Login successful',
       errors: null,
@@ -447,7 +450,11 @@ async function refreshToken(req, res, next) {
   const client = await pool.connect();
 
   try {
-    const token = req.cookies?.refresh_token;
+    const token =
+      req.cookies?.refresh_token ||
+      req.body?.refreshToken ||
+      req.body?.refresh_token ||
+      req.headers['x-refresh-token'];
 
     if (!token) {
       return res.status(401).json({
@@ -479,6 +486,7 @@ async function refreshToken(req, res, next) {
       data: {
         user,
         access_token: accessToken,
+        refresh_token: nextRefreshToken,
       },
       message: 'Token refreshed successfully',
       errors: null,

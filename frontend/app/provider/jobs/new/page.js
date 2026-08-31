@@ -36,8 +36,22 @@ function NewProviderJobPage() {
           </div>
 
           {error && (
-            <div className="rounded-[2rem] border border-red-200 bg-red-50 p-4 text-red-700">
-              <strong>Error:</strong> {error}
+            <div className="rounded-[2rem] border border-red-200 bg-red-50 p-5 text-red-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <strong>Error:</strong> {error}
+                {error.toLowerCase().includes('token') || error.toLowerCase().includes('auth') ? (
+                  <p className="mt-1 text-xs text-red-600">Your session credentials may have expired. Please sign in again to refresh your session.</p>
+                ) : null}
+              </div>
+              {(error.toLowerCase().includes('token') || error.toLowerCase().includes('auth')) && (
+                <button
+                  type="button"
+                  onClick={() => router.push('/login')}
+                  className="shrink-0 rounded-xl bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800 transition"
+                >
+                  Sign In Again
+                </button>
+              )}
             </div>
           )}
 

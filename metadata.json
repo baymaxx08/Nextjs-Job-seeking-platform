@@ -1,0 +1,8 @@
+{
+  "name": "Job Portal",
+  "description": "Production-ready full-stack job portal for seekers and employers with role-based access, resume management, application tracking, and modern search",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
