@@ -1098,9 +1098,146 @@ END $$;
 `;
 
 let isInitialized = false;
+let initPromise = null;
+
+async function seedInitialData(client) {
+  try {
+    const passwordHash = bcrypt.hashSync('Password123!', 10);
+
+    // 1. Seed Provider User if not exists
+    const providerUserRes = await client.query(
+      `INSERT INTO users (email, password_hash, role, is_verified)
+       VALUES ('provider@techcorp.io', $1, 'provider', TRUE)
+       ON CONFLICT (email) DO NOTHING
+       RETURNING id;`,
+      [passwordHash]
+    );
+
+    let providerUserId = providerUserRes.rows[0]?.id;
+    if (!providerUserId) {
+      const existing = await client.query(`SELECT id FROM users WHERE email = 'provider@techcorp.io' LIMIT 1;`);
+      providerUserId = existing.rows[0]?.id;
+    }
+
+    if (providerUserId) {
+      const providerProfileRes = await client.query(
+        `INSERT INTO job_providers (user_id, company_name, industry, company_size, description, website, location, logo_url, founded_year)
+         VALUES ($1, 'TechFlow Systems', 'Cloud & Developer Tooling', '50-200', 'Building modern cloud infrastructure, AI workflow orchestration, and developer productivity tools.', 'https://techflow.example.com', 'San Francisco, CA', 'https://images.unsplash.com/photo-1549923746-c502d488b3ea?w=128&h=128&fit=crop', 2021)
+         ON CONFLICT (user_id) DO UPDATE SET company_name = EXCLUDED.company_name
+         RETURNING id;`,
+        [providerUserId]
+      );
+      const providerId = providerProfileRes.rows[0]?.id;
+
+      // Seed Jobs if none exist
+      if (providerId) {
+        const jobsCount = await client.query(`SELECT COUNT(*)::int AS count FROM jobs;`);
+        if (jobsCount.rows[0]?.count === 0) {
+          const sampleJobs = [
+            {
+              title: 'Senior React & Next.js Architect',
+              description: 'We are seeking an experienced Frontend Architect to lead UI performance, component design systems, and frontend platform scalability.',
+              requirements: '5+ years React and TypeScript experience. Deep proficiency with Next.js, state management, and modern Web APIs.',
+              responsibilities: 'Lead architecture of core web platforms, mentor junior developers, conduct design system reviews, and optimize Core Web Vitals.',
+              location: 'San Francisco, CA',
+              is_remote: true,
+              job_type: 'full-time',
+              salary_min: 140000,
+              salary_max: 180000,
+              experience_level: 'senior',
+            },
+            {
+              title: 'Full Stack JavaScript Engineer',
+              description: 'Join our product team to build high-performance services and intuitive user interfaces across our primary developer portal.',
+              requirements: '3+ years experience with Node.js, Express/Fastify, React, and relational SQL databases.',
+              responsibilities: 'Deliver end-to-end full stack features, integrate REST and GraphQL endpoints, and collaborate closely with product design.',
+              location: 'Austin, TX',
+              is_remote: false,
+              job_type: 'full-time',
+              salary_min: 110000,
+              salary_max: 145000,
+              experience_level: 'mid',
+            },
+            {
+              title: 'Cloud Infrastructure & DevOps Engineer',
+              description: 'Manage our multi-region Kubernetes clusters, CI/CD deployment pipelines, and cloud observability platforms.',
+              requirements: 'Experience with Docker, Kubernetes, AWS/GCP, Terraform, and automated deployment pipelines.',
+              responsibilities: 'Maintain 99.99% system availability, optimize infrastructure costs, and implement zero-downtime release pipelines.',
+              location: 'Remote',
+              is_remote: true,
+              job_type: 'contract',
+              salary_min: 130000,
+              salary_max: 170000,
+              experience_level: 'senior',
+            },
+            {
+              title: 'Junior Frontend Developer',
+              description: 'Great opportunity for an enthusiastic developer to build interactive dashboards and internal tooling with modern React.',
+              requirements: 'Foundational knowledge of HTML, CSS, JavaScript/TypeScript, and React component workflows.',
+              responsibilities: 'Build reusable UI components, fix responsive styling bugs, and collaborate with engineering teammates.',
+              location: 'New York, NY',
+              is_remote: false,
+              job_type: 'full-time',
+              salary_min: 75000,
+              salary_max: 95000,
+              experience_level: 'entry',
+            },
+          ];
+
+          for (const job of sampleJobs) {
+            await client.query(
+              `INSERT INTO jobs (provider_id, title, description, requirements, responsibilities, location, is_remote, job_type, salary_min, salary_max, currency, experience_level, status, application_deadline)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'USD', $11, 'open', '2026-12-31');`,
+              [
+                providerId,
+                job.title,
+                job.description,
+                job.requirements,
+                job.responsibilities,
+                job.location,
+                job.is_remote,
+                job.job_type,
+                job.salary_min,
+                job.salary_max,
+                job.experience_level,
+              ]
+            );
+          }
+        }
+      }
+    }
+
+    // 2. Seed Seeker User if not exists
+    const seekerUserRes = await client.query(
+      `INSERT INTO users (email, password_hash, role, is_verified)
+       VALUES ('alex.rivera@example.com', $1, 'seeker', TRUE)
+       ON CONFLICT (email) DO NOTHING
+       RETURNING id;`,
+      [passwordHash]
+    );
+
+    let seekerUserId = seekerUserRes.rows[0]?.id;
+    if (!seekerUserId) {
+      const existing = await client.query(`SELECT id FROM users WHERE email = 'alex.rivera@example.com' LIMIT 1;`);
+      seekerUserId = existing.rows[0]?.id;
+    }
+
+    if (seekerUserId) {
+      await client.query(
+        `INSERT INTO job_seekers (user_id, full_name, headline, bio, location, phone, linkedin_url, portfolio_url, years_of_experience, availability, profile_photo_url)
+         VALUES ($1, 'Alex Rivera', 'Senior Full Stack & React Engineer', 'Full stack developer with 6+ years experience architecting high-scale React, Node.js, and TypeScript applications.', 'Austin, TX', '+1 (555) 234-5678', 'https://linkedin.com', 'https://github.com', 6, 'immediate', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=128&h=128&fit=crop')
+         ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name;`,
+        [seekerUserId]
+      );
+    }
+  } catch (seedErr) {
+    console.warn('[Database] Seed data check warning (safe to ignore if already populated):', seedErr.message);
+  }
+}
 
 async function initDatabase() {
   if (isInitialized) return true;
+  if (initPromise) return initPromise;
 
   if (!realPool) {
     console.log('[Database] No PostgreSQL DATABASE_URL detected. Running with in-memory store.');
@@ -1108,28 +1245,39 @@ async function initDatabase() {
     return true;
   }
 
-  try {
-    console.log('[Database] Connecting to PostgreSQL and verifying tables...');
-    const client = await realPool.connect();
+  initPromise = (async () => {
     try {
-      await client.query(INIT_SCHEMA_SQL);
-      console.log('✅ [Database] PostgreSQL tables and schema initialized successfully!');
-      isInitialized = true;
-      return true;
+      console.log('[Database] Connecting to PostgreSQL and verifying tables...');
+      const client = await realPool.connect();
+      try {
+        await client.query(INIT_SCHEMA_SQL);
+        console.log('✅ [Database] PostgreSQL tables and schema initialized successfully!');
+        await seedInitialData(client);
+        console.log('✅ [Database] Seed data verified and ready!');
+        isInitialized = true;
+        return true;
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      console.error('❌ [Database] PostgreSQL schema migration failed:', err.message);
+      console.warn('[Database] Falling back to mock store for transient requests until DB is ready.');
+      return false;
     } finally {
-      client.release();
+      initPromise = null;
     }
-  } catch (err) {
-    console.error('❌ [Database] PostgreSQL schema migration failed:', err.message);
-    console.warn('[Database] Falling back to mock store for transient requests until DB is ready.');
-    return false;
-  }
+  })();
+
+  return initPromise;
 }
 
 const pool = {
   async connect() {
     if (realPool) {
       try {
+        if (!isInitialized) {
+          await initDatabase().catch(() => {});
+        }
         const client = await realPool.connect();
         return client;
       } catch (err) {
@@ -1148,6 +1296,9 @@ const pool = {
   async query(text, params) {
     if (realPool) {
       try {
+        if (!isInitialized) {
+          await initDatabase().catch(() => {});
+        }
         return await realPool.query(text, params);
       } catch (err) {
         console.warn('[Database] PostgreSQL query failed, executing with in-memory store:', err.message);
