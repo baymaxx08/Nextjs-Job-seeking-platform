@@ -17,10 +17,21 @@ function ProviderJobApplicationsPage() {
     }
   }, [params?.id, fetchJobApplications]);
 
-  const handleDownloadResume = async (applicationId) => {
-    const blob = await downloadApplicationResume(applicationId);
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, '_blank');
+  const handleDownloadResume = async (applicationId, fileName) => {
+    try {
+      const blob = await downloadApplicationResume(applicationId);
+      if (!blob) return;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'candidate-resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download resume:', err);
+    }
   };
 
   return (

@@ -14,7 +14,7 @@ export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isAuthenticated, role } = useAuth();
-  const { resumes, fetchProfile } = useSeeker();
+  const { resumes, fetchProfile, uploadResume } = useSeeker();
   const { job, loading, error, fetchJob } = useJobs();
   const { applications, savedJobs, loading: applicationLoading, fetchApplications, fetchSavedJobs, applyToJob, saveJob, removeSavedJob } = useApplications();
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -163,6 +163,7 @@ export default function JobDetailPage() {
         loading={applicationLoading}
         onClose={() => setIsApplyModalOpen(false)}
         onSubmit={handleApplySubmit}
+        onUploadResume={uploadResume}
       />
     </main>
   );
