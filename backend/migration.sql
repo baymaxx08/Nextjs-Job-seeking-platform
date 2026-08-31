@@ -8,9 +8,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
-  email CITEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('seeker', 'provider')),
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
@@ -18,7 +18,7 @@ CREATE TABLE users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE job_seekers (
+CREATE TABLE IF NOT EXISTS job_seekers (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE job_seekers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE job_providers (
+CREATE TABLE IF NOT EXISTS job_providers (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   company_name TEXT NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE job_providers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE jobs (
+CREATE TABLE IF NOT EXISTS jobs (
   id BIGSERIAL PRIMARY KEY,
   provider_id BIGINT NOT NULL REFERENCES job_providers(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE jobs (
   )
 );
 
-CREATE TABLE resumes (
+CREATE TABLE IF NOT EXISTS resumes (
   id BIGSERIAL PRIMARY KEY,
   seeker_id BIGINT NOT NULL REFERENCES job_seekers(id) ON DELETE CASCADE,
   file_name TEXT NOT NULL,
@@ -83,7 +83,7 @@ CREATE TABLE resumes (
   uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE applications (
+CREATE TABLE IF NOT EXISTS applications (
   id BIGSERIAL PRIMARY KEY,
   job_id BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   seeker_id BIGINT NOT NULL REFERENCES job_seekers(id) ON DELETE CASCADE,
@@ -95,7 +95,7 @@ CREATE TABLE applications (
   CONSTRAINT applications_unique_job_seeker UNIQUE (job_id, seeker_id)
 );
 
-CREATE TABLE saved_jobs (
+CREATE TABLE IF NOT EXISTS saved_jobs (
   id BIGSERIAL PRIMARY KEY,
   seeker_id BIGINT NOT NULL REFERENCES job_seekers(id) ON DELETE CASCADE,
   job_id BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
@@ -103,24 +103,24 @@ CREATE TABLE saved_jobs (
   CONSTRAINT saved_jobs_unique UNIQUE (seeker_id, job_id)
 );
 
-CREATE TABLE skills (
+CREATE TABLE IF NOT EXISTS skills (
   id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE seeker_skills (
+CREATE TABLE IF NOT EXISTS seeker_skills (
   seeker_id BIGINT NOT NULL REFERENCES job_seekers(id) ON DELETE CASCADE,
   skill_id BIGINT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
   PRIMARY KEY (seeker_id, skill_id)
 );
 
-CREATE TABLE job_skills (
+CREATE TABLE IF NOT EXISTS job_skills (
   job_id BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   skill_id BIGINT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
   PRIMARY KEY (job_id, skill_id)
 );
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type TEXT NOT NULL,
@@ -129,7 +129,7 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id BIGSERIAL PRIMARY KEY,
   actor_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   action TEXT NOT NULL,
@@ -138,49 +138,45 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_job_seekers_user_id ON job_seekers(user_id);
-CREATE INDEX idx_job_providers_user_id ON job_providers(user_id);
-CREATE INDEX idx_jobs_provider_id ON jobs(provider_id);
-CREATE INDEX idx_jobs_status ON jobs(status);
-CREATE INDEX idx_jobs_location ON jobs(location);
-CREATE INDEX idx_jobs_job_type ON jobs(job_type);
-CREATE INDEX idx_jobs_experience_level ON jobs(experience_level);
-CREATE INDEX idx_jobs_application_deadline ON jobs(application_deadline);
-CREATE INDEX idx_resumes_seeker_id ON resumes(seeker_id);
-CREATE INDEX idx_applications_job_id ON applications(job_id);
-CREATE INDEX idx_applications_seeker_id ON applications(seeker_id);
-CREATE INDEX idx_applications_status ON applications(status);
-CREATE INDEX idx_saved_jobs_seeker_id ON saved_jobs(seeker_id);
-CREATE INDEX idx_saved_jobs_job_id ON saved_jobs(job_id);
-CREATE INDEX idx_skills_name ON skills(name);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
-CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_job_seekers_user_id ON job_seekers(user_id);
+CREATE INDEX IF NOT EXISTS idx_job_providers_user_id ON job_providers(user_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_provider_id ON jobs(provider_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location);
+CREATE INDEX IF NOT EXISTS idx_jobs_job_type ON jobs(job_type);
+CREATE INDEX IF NOT EXISTS idx_jobs_experience_level ON jobs(experience_level);
+CREATE INDEX IF NOT EXISTS idx_jobs_application_deadline ON jobs(application_deadline);
+CREATE INDEX IF NOT EXISTS idx_resumes_seeker_id ON resumes(seeker_id);
+CREATE INDEX IF NOT EXISTS idx_applications_job_id ON applications(job_id);
+CREATE INDEX IF NOT EXISTS idx_applications_seeker_id ON applications(seeker_id);
+CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+CREATE INDEX IF NOT EXISTS idx_saved_jobs_seeker_id ON saved_jobs(seeker_id);
+CREATE INDEX IF NOT EXISTS idx_saved_jobs_job_id ON saved_jobs(job_id);
+CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 
-CREATE INDEX idx_jobs_search_vector ON jobs USING GIN (
-  to_tsvector(
-    'english',
-    coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || coalesce(requirements, '') || ' ' || coalesce(responsibilities, '') || ' ' || coalesce(location, '')
-  )
-);
+INSERT INTO skills (name) VALUES 
+('React'), ('TypeScript'), ('Node.js'), ('Next.js'), ('PostgreSQL'), ('Tailwind CSS'), ('Python'), ('Docker'), ('Kubernetes'), ('GraphQL'), ('AWS')
+ON CONFLICT (name) DO NOTHING;
 
-CREATE TRIGGER users_set_updated_at
-BEFORE UPDATE ON users
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-CREATE TRIGGER job_seekers_set_updated_at
-BEFORE UPDATE ON job_seekers
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-CREATE TRIGGER job_providers_set_updated_at
-BEFORE UPDATE ON job_providers
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-CREATE TRIGGER jobs_set_updated_at
-BEFORE UPDATE ON jobs
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-CREATE TRIGGER applications_set_updated_at
-BEFORE UPDATE ON applications
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'users_set_updated_at') THEN
+    CREATE TRIGGER users_set_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'job_seekers_set_updated_at') THEN
+    CREATE TRIGGER job_seekers_set_updated_at BEFORE UPDATE ON job_seekers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'job_providers_set_updated_at') THEN
+    CREATE TRIGGER job_providers_set_updated_at BEFORE UPDATE ON job_providers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'jobs_set_updated_at') THEN
+    CREATE TRIGGER jobs_set_updated_at BEFORE UPDATE ON jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'applications_set_updated_at') THEN
+    CREATE TRIGGER applications_set_updated_at BEFORE UPDATE ON applications FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+END $$;

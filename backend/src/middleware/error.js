@@ -8,11 +8,22 @@ function notFound(req, res, next) {
 }
 
 function errorHandler(err, req, res, next) {
-  const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'Internal server error';
+  console.error('[API Error]:', err.message || err);
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err);
+  let statusCode = err.statusCode || err.status || 500;
+  let message = err.message || 'Internal server error';
+
+  // Handle PostgreSQL specific errors
+  if (err.code === '23505') {
+    // Unique violation
+    statusCode = 409;
+    if (err.detail && err.detail.includes('email')) {
+      message = 'An account with this email already exists';
+    } else {
+      message = 'A duplicate record already exists';
+    }
+  } else if (err.code === '28P01' || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+    console.error('[Database Connection Issue]:', err.message);
   }
 
   res.status(statusCode).json({

@@ -8,6 +8,7 @@ const path = require('path');
 require('dotenv').config();
 
 const { notFound, errorHandler } = require('./src/middleware/error');
+const { initDatabase } = require('./src/config/db');
 
 const authRoutes = require('./src/routes/auth');
 const jobsRoutes = require('./src/routes/jobs');
@@ -76,6 +77,10 @@ const PORT = process.env.PORT || process.env.BACKEND_PORT || 5000;
 
 function startServer(port = PORT) {
   try {
+    initDatabase().catch((err) => {
+      console.warn('[Database] Initial connection/bootstrap warning:', err.message);
+    });
+
     const server = app.listen(port, () => {
       console.log(`Backend server running on port ${port}`);
     });

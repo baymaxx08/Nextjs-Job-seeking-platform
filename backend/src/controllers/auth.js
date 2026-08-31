@@ -312,7 +312,9 @@ async function registerSeeker(req, res, next) {
       errors: null,
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
     return next(error);
   } finally {
     client.release();
@@ -362,7 +364,9 @@ async function registerProvider(req, res, next) {
       errors: null,
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
     return next(error);
   } finally {
     client.release();
