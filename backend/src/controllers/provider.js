@@ -3,6 +3,7 @@ const { z } = require('zod');
 
 const { pool } = require('../config/db');
 const { sendEmail } = require('../services/emailService');
+const { ensureResumeFileExists } = require('../services/fileService');
 
 const currentYear = new Date().getFullYear();
 
@@ -942,10 +943,11 @@ async function getApplicationResume(req, res, next) {
     }
 
     const result = await client.query(
-      `SELECT r.file_name, r.file_path
+      `SELECT r.file_name, r.file_path, js.full_name
        FROM applications a
        INNER JOIN jobs j ON j.id = a.job_id
        INNER JOIN resumes r ON r.id = a.resume_id
+       LEFT JOIN job_seekers js ON js.user_id = a.seeker_id
        WHERE a.id = $1 AND j.provider_id = $2
        LIMIT 1`,
       [req.params.id, providerId]
@@ -963,6 +965,24 @@ async function getApplicationResume(req, res, next) {
     }
 
     const absolutePath = path.join(__dirname, '..', '..', resume.file_path);
+    await ensureResumeFileExists(absolutePath, resume.file_name, resume.full_name || 'Candidate');
+
+    const ext = path.extname(resume.file_name || '').toLowerCase();
+    const mimeMap = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.rtf': 'application/rtf',
+      '.txt': 'text/plain',
+    };
+    const contentType = mimeMap[ext] || 'application/pdf';
+
+    res.setHeader('Content-Type', contentType);
+    if (req.query.inline === 'true') {
+      res.setHeader('Content-Disposition', `inline; filename="${resume.file_name}"`);
+      return res.sendFile(absolutePath);
+    }
+
     return res.download(absolutePath, resume.file_name);
   } catch (error) {
     return next(error);

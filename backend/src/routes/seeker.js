@@ -12,6 +12,7 @@ const {
 	getProfile,
 	updateProfile,
 	uploadResume,
+	getSeekerResume,
 	deleteResume,
 	listApplications,
 	withdrawApplication,
@@ -25,6 +26,7 @@ const router = express.Router();
 router.get('/profile', requireAuth, requireRole('seeker'), getProfile);
 router.put('/profile', requireAuth, requireRole('seeker'), validateSchema(profileSchema), updateProfile);
 router.post('/resume', requireAuth, requireRole('seeker'), upload.single('resume'), uploadResume);
+router.get('/resume/:id', requireAuth, requireRole('seeker'), validateSchema(resumeIdParamSchema, 'params'), getSeekerResume);
 router.delete('/resume/:id', requireAuth, requireRole('seeker'), validateSchema(resumeIdParamSchema, 'params'), deleteResume);
 router.get('/applications', requireAuth, requireRole('seeker'), listApplications);
 router.delete('/applications/:id', requireAuth, requireRole('seeker'), validateSchema(applicationIdParamSchema, 'params'), withdrawApplication);

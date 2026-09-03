@@ -202,9 +202,40 @@ function useProvider() {
     }
   }, []);
 
-  const downloadApplicationResume = useCallback(async (id) => {
-    const response = await api.get(`/provider/applications/${id}/resume`, { responseType: 'blob' });
-    return response.data;
+  const downloadApplicationResume = useCallback(async (id, fileName = 'candidate_resume.pdf') => {
+    try {
+      const response = await api.get(`/provider/applications/${id}/resume`, { responseType: 'blob' });
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    } catch (downloadErr) {
+      setError(downloadErr?.response?.data?.message || 'Unable to download resume');
+      return false;
+    }
+  }, []);
+
+  const getApplicationResumeBlobUrl = useCallback(async (id) => {
+    try {
+      const response = await api.get(`/provider/applications/${id}/resume?inline=true`, { responseType: 'blob' });
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      return {
+        blobUrl: window.URL.createObjectURL(blob),
+        contentType,
+        size: blob.size,
+      };
+    } catch (viewErr) {
+      setError(viewErr?.response?.data?.message || 'Unable to load resume preview');
+      return null;
+    }
   }, []);
 
   return {
@@ -226,6 +257,7 @@ function useProvider() {
     fetchAllApplications,
     updateApplicationStatus,
     downloadApplicationResume,
+    getApplicationResumeBlobUrl,
     setProfile,
     setJobs,
     setJob,

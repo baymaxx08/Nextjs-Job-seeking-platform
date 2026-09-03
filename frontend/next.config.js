@@ -11,6 +11,10 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${apiUrl.replace(/\/$/, '')}/api/:path*`,
       },
+      {
+        source: '/uploads/:path*',
+        destination: `${apiUrl.replace(/\/$/, '')}/uploads/:path*`,
+      },
     ];
   },
 };

@@ -25,12 +25,30 @@ const storage = multer.diskStorage({
 });
 
 function fileFilter(req, file, cb) {
-  if (file.mimetype !== 'application/pdf') {
-    cb(new Error('Only PDF files are allowed'));
-    return;
-  }
+  const allowedExtensions = ['.pdf', '.doc', '.docx', '.rtf', '.txt'];
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  
+  const allowedMimeTypes = [
+    'application/pdf',
+    'application/x-pdf',
+    'application/acrobat',
+    'application/vnd.pdf',
+    'text/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/rtf',
+    'text/rtf',
+    'text/plain',
+    'application/octet-stream',
+  ];
 
-  cb(null, true);
+  if (allowedExtensions.includes(ext) || allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    const error = new Error('Only PDF, Word (.doc, .docx), RTF, or text documents are allowed');
+    error.statusCode = 400;
+    cb(error);
+  }
 }
 
 const upload = multer({

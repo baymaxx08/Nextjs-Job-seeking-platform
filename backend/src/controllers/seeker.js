@@ -3,7 +3,7 @@ const path = require('path');
 const { z } = require('zod');
 
 const { pool } = require('../config/db');
-const { deleteLocalFile, buildResumePath } = require('../services/fileService');
+const { deleteLocalFile, buildResumePath, ensureResumeFileExists } = require('../services/fileService');
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(2).optional(),
@@ -238,7 +238,7 @@ async function uploadResume(req, res, next) {
       });
     }
 
-    const isDefault = req.body.isDefault === 'true';
+    const isDefault = req.body.isDefault === 'true' || req.body.isDefault === true;
     const filePath = buildResumePath(req.user.id, req.file.filename);
 
     await client.query('BEGIN');
@@ -256,7 +256,8 @@ async function uploadResume(req, res, next) {
 
     if (!isDefault) {
       const defaultCount = await client.query('SELECT COUNT(*)::INTEGER AS total FROM resumes WHERE seeker_id = $1 AND is_default = TRUE', [req.user.id]);
-      if (defaultCount.rows[0].total === 0) {
+      const total = Number(defaultCount.rows?.[0]?.total ?? 0);
+      if (total === 0) {
         await client.query('UPDATE resumes SET is_default = TRUE WHERE id = $1', [resumeResult.rows[0].id]);
         resumeResult.rows[0].is_default = true;
       }
@@ -272,6 +273,54 @@ async function uploadResume(req, res, next) {
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    return next(error);
+  } finally {
+    client.release();
+  }
+}
+
+async function getSeekerResume(req, res, next) {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const result = await client.query(
+      'SELECT id, seeker_id, file_name, file_path FROM resumes WHERE id = $1 AND seeker_id = $2 LIMIT 1',
+      [id, req.user.id]
+    );
+
+    const resume = result.rows[0];
+
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Resume not found',
+        errors: null,
+      });
+    }
+
+    const absolutePath = path.join(__dirname, '..', '..', resume.file_path);
+    await ensureResumeFileExists(absolutePath, resume.file_name, req.user.email || 'Candidate');
+
+    const ext = path.extname(resume.file_name || '').toLowerCase();
+    const mimeMap = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.rtf': 'application/rtf',
+      '.txt': 'text/plain',
+    };
+    const contentType = mimeMap[ext] || 'application/pdf';
+
+    res.setHeader('Content-Type', contentType);
+    if (req.query.inline === 'true') {
+      res.setHeader('Content-Disposition', `inline; filename="${resume.file_name}"`);
+      return res.sendFile(absolutePath);
+    }
+
+    return res.download(absolutePath, resume.file_name);
+  } catch (error) {
     return next(error);
   } finally {
     client.release();
@@ -518,6 +567,7 @@ module.exports = {
   getProfile,
   updateProfile,
   uploadResume,
+  getSeekerResume,
   deleteResume,
   listApplications,
   withdrawApplication,

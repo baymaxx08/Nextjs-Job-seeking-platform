@@ -13,6 +13,10 @@ function errorHandler(err, req, res, next) {
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal server error';
 
+  if (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE' || (err.message && err.message.includes('allowed'))) {
+    statusCode = 400;
+  }
+
   // Handle PostgreSQL specific errors
   if (err.code === '23505') {
     // Unique violation

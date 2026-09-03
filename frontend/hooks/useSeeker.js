@@ -52,16 +52,55 @@ function useSeeker() {
       formData.append('resume', file);
       formData.append('isDefault', String(isDefault));
 
-      const response = await api.post('/seeker/resume', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // Do NOT manually specify 'Content-Type': 'multipart/form-data', Axios will set it with the boundary!
+      const response = await api.post('/seeker/resume', formData);
+      const uploadedResume = response.data?.data?.resume || null;
 
-      return response.data?.data?.resume || null;
+      if (uploadedResume) {
+        setResumes((currentResumes) => {
+          if (uploadedResume.is_default) {
+            return [uploadedResume, ...currentResumes.map((r) => ({ ...r, is_default: false }))];
+          }
+          return [uploadedResume, ...currentResumes];
+        });
+      }
+
+      return uploadedResume;
     } catch (uploadError) {
-      setError(uploadError?.response?.data?.message || 'Unable to upload resume');
+      const msg = uploadError?.response?.data?.message || uploadError?.message || 'Unable to upload resume';
+      setError(msg);
       return null;
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const downloadResume = useCallback(async (id, fileName = 'resume.pdf') => {
+    try {
+      const response = await api.get(`/seeker/resume/${id}`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    } catch (downloadErr) {
+      setError(downloadErr?.response?.data?.message || 'Unable to download resume');
+      return false;
+    }
+  }, []);
+
+  const getResumeBlobUrl = useCallback(async (id) => {
+    try {
+      const response = await api.get(`/seeker/resume/${id}?inline=true`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+      return window.URL.createObjectURL(blob);
+    } catch {
+      return null;
     }
   }, []);
 
@@ -90,6 +129,8 @@ function useSeeker() {
     fetchProfile,
     updateProfile,
     uploadResume,
+    downloadResume,
+    getResumeBlobUrl,
     deleteResume,
     setProfile,
     setSkills,

@@ -666,7 +666,7 @@ function executeMockQuery(sql, params = []) {
     const rows = userApps.map((a) => {
       const job = mockStore.jobs.find((j) => j.id === a.job_id) || {};
       const provider = mockStore.job_providers.find((p) => p.id === job.provider_id) || {};
-      const resume = mockStore.resumes.find((r) => r.id === a.resume_id) || {};
+      const resume = mockStore.resumes.find((r) => r.id === a.resume_id) || mockStore.resumes.find((r) => r.seeker_id === a.seeker_id) || {};
 
       return {
         id: a.id,
@@ -691,6 +691,64 @@ function executeMockQuery(sql, params = []) {
     return { rows, rowCount: rows.length };
   }
 
+  // Provider resume lookup for specific application
+  if (lower.includes('from applications a') && lower.includes('inner join resumes r') && lower.includes('where a.id = $1 and j.provider_id = $2')) {
+    const appId = Number(params[0]);
+    const providerId = Number(params[1]);
+    const app = mockStore.applications.find((a) => a.id === appId);
+    if (!app) return { rows: [], rowCount: 0 };
+    const job = mockStore.jobs.find((j) => j.id === app.job_id && j.provider_id === providerId);
+    if (!job) return { rows: [], rowCount: 0 };
+    const resume = mockStore.resumes.find((r) => r.id === app.resume_id) || mockStore.resumes.find((r) => r.seeker_id === app.seeker_id) || mockStore.resumes[0];
+    if (resume) {
+      return { rows: [{ file_name: resume.file_name, file_path: resume.file_path }], rowCount: 1 };
+    }
+    return { rows: [], rowCount: 0 };
+  }
+
+  // Provider applications list for specific job (listJobApplications)
+  if (lower.includes('from applications a') && lower.includes('where a.job_id = $1 and j.provider_id = $2')) {
+    const jobId = Number(params[0]);
+    const providerId = Number(params[1]);
+    const job = mockStore.jobs.find((j) => j.id === jobId && j.provider_id === providerId);
+    if (!job) return { rows: [], rowCount: 0 };
+
+    const apps = mockStore.applications.filter((a) => a.job_id === jobId);
+    const jobSkillIds = mockStore.job_skills.filter((js) => js.job_id === jobId).map((js) => js.skill_id);
+    const jobSkills = mockStore.skills.filter((s) => jobSkillIds.includes(s.id)).map((s) => s.name);
+
+    const rows = apps.map((a) => {
+      const seeker = mockStore.job_seekers.find((s) => s.user_id === a.seeker_id || s.id === a.seeker_id) || {};
+      const user = mockStore.users.find((u) => u.id === a.seeker_id || u.id === seeker.user_id) || {};
+      const resume = mockStore.resumes.find((r) => r.id === a.resume_id) || mockStore.resumes.find((r) => r.seeker_id === a.seeker_id || r.seeker_id === seeker.id) || {};
+      const seekerSkillIds = mockStore.seeker_skills.filter((ss) => ss.seeker_id === seeker.id).map((ss) => ss.skill_id);
+      const seekerSkills = mockStore.skills.filter((s) => seekerSkillIds.includes(s.id)).map((s) => s.name);
+
+      return {
+        id: a.id,
+        job_id: a.job_id,
+        seeker_id: a.seeker_id,
+        resume_id: a.resume_id,
+        cover_letter: a.cover_letter,
+        status: a.status,
+        applied_at: a.applied_at,
+        updated_at: a.updated_at,
+        seeker_email: user.email || 'candidate@example.com',
+        full_name: seeker.full_name || 'Candidate',
+        headline: seeker.headline || 'Software Engineer',
+        location: seeker.location || 'Remote',
+        years_of_experience: seeker.years_of_experience || 0,
+        resume_file_name: resume.file_name || null,
+        resume_file_path: resume.file_path || null,
+        seeker_skills: seekerSkills,
+        job_skills: jobSkills,
+      };
+    });
+
+    return { rows, rowCount: rows.length };
+  }
+
+  // Provider applications list across all jobs
   if (lower.includes('from applications a') && lower.includes('where j.provider_id = $1')) {
     const providerId = Number(params[0]);
     const providerJobs = mockStore.jobs.filter((j) => j.provider_id === providerId);
@@ -701,18 +759,33 @@ function executeMockQuery(sql, params = []) {
       const job = providerJobs.find((j) => j.id === a.job_id) || {};
       const provider = mockStore.job_providers.find((p) => p.id === providerId) || {};
       const seeker = mockStore.job_seekers.find((s) => s.user_id === a.seeker_id || s.id === a.seeker_id) || {};
+      const user = mockStore.users.find((u) => u.id === a.seeker_id || u.id === seeker.user_id) || {};
+      const resume = mockStore.resumes.find((r) => r.id === a.resume_id) || mockStore.resumes.find((r) => r.seeker_id === a.seeker_id || r.seeker_id === seeker.id) || {};
+      const seekerSkillIds = mockStore.seeker_skills.filter((ss) => ss.seeker_id === seeker.id).map((ss) => ss.skill_id);
+      const seekerSkills = mockStore.skills.filter((s) => seekerSkillIds.includes(s.id)).map((s) => s.name);
+      const jobSkillIds = mockStore.job_skills.filter((js) => js.job_id === job.id).map((js) => js.skill_id);
+      const jobSkills = mockStore.skills.filter((s) => jobSkillIds.includes(s.id)).map((s) => s.name);
 
       return {
         id: a.id,
         job_id: a.job_id,
+        seeker_id: a.seeker_id,
+        resume_id: a.resume_id,
+        cover_letter: a.cover_letter,
         status: a.status,
         applied_at: a.applied_at,
         updated_at: a.updated_at,
         title: job.title || 'Engineering Role',
         company_name: provider.company_name || 'TechFlow',
+        seeker_email: user.email || 'candidate@example.com',
         full_name: seeker.full_name || 'Candidate',
         headline: seeker.headline || 'Software Engineer',
         location: seeker.location || 'Remote',
+        years_of_experience: seeker.years_of_experience || 0,
+        resume_file_name: resume.file_name || null,
+        resume_file_path: resume.file_path || null,
+        seeker_skills: seekerSkills,
+        job_skills: jobSkills,
       };
     });
 
@@ -820,9 +893,29 @@ function executeMockQuery(sql, params = []) {
   }
 
   // Resumes Queries
+  if (lower.includes('count(*)') && lower.includes('from resumes')) {
+    const seekerId = Number(params[0]);
+    const onlyDefault = lower.includes('is_default = true');
+    const total = mockStore.resumes.filter((r) => r.seeker_id === seekerId && (!onlyDefault || r.is_default)).length;
+    return { rows: [{ total }], rowCount: 1 };
+  }
+
+  if (lower.includes('from resumes') && lower.includes('where id = $1 and seeker_id = $2')) {
+    const resumeId = Number(params[0]);
+    const seekerId = Number(params[1]);
+    const resume = mockStore.resumes.find((r) => r.id === resumeId && (r.seeker_id === seekerId || mockStore.job_seekers.some((js) => js.user_id === seekerId && r.seeker_id === js.id)));
+    return { rows: resume ? [resume] : [], rowCount: resume ? 1 : 0 };
+  }
+
+  if (lower.includes('from resumes') && lower.includes('where id = $1')) {
+    const resumeId = Number(params[0]);
+    const resume = mockStore.resumes.find((r) => r.id === resumeId);
+    return { rows: resume ? [resume] : [], rowCount: resume ? 1 : 0 };
+  }
+
   if (lower.includes('from resumes') && lower.includes('where seeker_id = $1')) {
     const seekerId = Number(params[0]);
-    const userResumes = mockStore.resumes.filter((r) => r.seeker_id === seekerId);
+    const userResumes = mockStore.resumes.filter((r) => r.seeker_id === seekerId || mockStore.job_seekers.some((js) => js.user_id === seekerId && r.seeker_id === js.id));
     return { rows: userResumes, rowCount: userResumes.length };
   }
 
@@ -843,13 +936,24 @@ function executeMockQuery(sql, params = []) {
 
   if (lower.startsWith('update resumes set is_default = false where seeker_id = $1')) {
     const seekerId = Number(params[0]);
-    mockStore.resumes.filter((r) => r.seeker_id === seekerId).forEach((r) => (r.is_default = false));
+    mockStore.resumes.filter((r) => r.seeker_id === seekerId || mockStore.job_seekers.some((js) => js.user_id === seekerId && r.seeker_id === js.id)).forEach((r) => (r.is_default = false));
     return { rows: [], rowCount: 1 };
+  }
+
+  if (lower.startsWith('update resumes set is_default = true where id = $1')) {
+    const resumeId = Number(params[0]);
+    const resume = mockStore.resumes.find((r) => r.id === resumeId);
+    if (resume) {
+      mockStore.resumes.filter((r) => r.seeker_id === resume.seeker_id).forEach((r) => (r.is_default = false));
+      resume.is_default = true;
+      return { rows: [{ id: resume.id }], rowCount: 1 };
+    }
+    return { rows: [], rowCount: 0 };
   }
 
   if (lower.startsWith('delete from resumes where id = $1 and seeker_id = $2')) {
     const [resumeId, seekerId] = params;
-    const idx = mockStore.resumes.findIndex((r) => r.id === Number(resumeId) && r.seeker_id === Number(seekerId));
+    const idx = mockStore.resumes.findIndex((r) => r.id === Number(resumeId) && (r.seeker_id === Number(seekerId) || mockStore.job_seekers.some((js) => js.user_id === Number(seekerId) && r.seeker_id === js.id)));
     if (idx !== -1) mockStore.resumes.splice(idx, 1);
     return { rows: [], rowCount: 1 };
   }
