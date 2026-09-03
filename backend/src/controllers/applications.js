@@ -2,6 +2,7 @@ const { z } = require('zod');
 
 const { pool } = require('../config/db');
 const { sendEmail } = require('../services/emailService');
+const { getOrCreateSeekerId } = require('../services/seekerService');
 
 const applySchema = z.object({
   resumeId: z.coerce.number().int().positive(),
@@ -20,8 +21,17 @@ async function applyToJob(req, res, next) {
 
   try {
     const jobId = Number(req.params.id);
-    const seekerId = req.user.id;
+    const seekerId = await getOrCreateSeekerId(client, req.user);
     const { resumeId, coverLetter } = req.body;
+
+    if (!seekerId) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Job seeker profile not found',
+        errors: null,
+      });
+    }
 
     const jobResult = await client.query(
       `SELECT j.id, j.title, j.status, jp.user_id AS provider_user_id, u.email AS provider_email, jp.company_name
@@ -56,9 +66,9 @@ async function applyToJob(req, res, next) {
     const resumeResult = await client.query(
       `SELECT id, seeker_id, file_name, file_path, file_size, is_default
        FROM resumes
-       WHERE id = $1 AND seeker_id = $2
+       WHERE id = $1 AND (seeker_id = $2 OR seeker_id = $3)
        LIMIT 1`,
-      [resumeId, seekerId]
+      [resumeId, seekerId, req.user.id]
     );
 
     const resume = resumeResult.rows[0];
@@ -73,8 +83,8 @@ async function applyToJob(req, res, next) {
     }
 
     const existingApplication = await client.query(
-      'SELECT id FROM applications WHERE job_id = $1 AND seeker_id = $2 LIMIT 1',
-      [jobId, seekerId]
+      'SELECT id FROM applications WHERE job_id = $1 AND (seeker_id = $2 OR seeker_id = $3) LIMIT 1',
+      [jobId, seekerId, req.user.id]
     );
 
     if (existingApplication.rows.length > 0) {
@@ -110,7 +120,7 @@ async function applyToJob(req, res, next) {
     await client.query(
       `INSERT INTO audit_logs (actor_id, action, target_type, target_id)
        VALUES ($1, $2, $3, $4)`,
-      [seekerId, 'apply', 'application', application.id]
+      [req.user.id, 'apply', 'application', application.id]
     );
 
     await client.query('COMMIT');

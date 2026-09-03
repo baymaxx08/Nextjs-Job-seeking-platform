@@ -382,18 +382,30 @@ function executeMockQuery(sql, params = []) {
   }
 
   // Job Seekers Queries
+  if (lower.startsWith('select id from job_seekers where user_id = $1')) {
+    const userId = Number(params[0]);
+    const seeker = mockStore.job_seekers.find((s) => s.user_id === userId);
+    return { rows: seeker ? [{ id: seeker.id }] : [], rowCount: seeker ? 1 : 0 };
+  }
+
   if (lower.startsWith('insert into job_seekers')) {
     const [user_id, full_name, headline, bio, location, phone, linkedin_url, portfolio_url, years_of_experience, availability] = params;
+    const existing = mockStore.job_seekers.find((s) => s.user_id === Number(user_id));
+    if (existing) {
+      if (full_name) existing.full_name = full_name;
+      existing.updated_at = new Date().toISOString();
+      return { rows: [{ id: existing.id, ...existing }], rowCount: 1 };
+    }
     const newSeeker = {
       id: ++nextId,
       user_id: Number(user_id),
-      full_name,
-      headline,
-      bio,
-      location,
-      phone,
-      linkedin_url,
-      portfolio_url,
+      full_name: full_name || 'Job Seeker',
+      headline: headline || null,
+      bio: bio || null,
+      location: location || null,
+      phone: phone || null,
+      linkedin_url: linkedin_url || null,
+      portfolio_url: portfolio_url || null,
       years_of_experience: Number(years_of_experience || 0),
       availability: availability || 'immediate',
       profile_photo_url: null,

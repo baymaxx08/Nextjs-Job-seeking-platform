@@ -4,6 +4,7 @@ const { z } = require('zod');
 
 const { pool } = require('../config/db');
 const { deleteLocalFile, buildResumePath, ensureResumeFileExists } = require('../services/fileService');
+const { getOrCreateSeekerId } = require('../services/seekerService');
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(2).optional(),
@@ -58,6 +59,8 @@ async function getProfile(req, res, next) {
   const client = await pool.connect();
 
   try {
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const result = await client.query(
       `SELECT
         u.id AS user_id,
@@ -93,9 +96,9 @@ async function getProfile(req, res, next) {
     const resumesResult = await client.query(
       `SELECT id, seeker_id, file_name, file_path, file_size, is_default, uploaded_at
        FROM resumes
-       WHERE seeker_id = $1
+       WHERE seeker_id = $1 OR seeker_id = $2
        ORDER BY uploaded_at DESC`,
-      [req.user.id]
+      [seekerId, req.user.id]
     );
 
     if (!row) {
@@ -238,24 +241,40 @@ async function uploadResume(req, res, next) {
       });
     }
 
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+    if (!seekerId) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Job seeker profile not found',
+        errors: null,
+      });
+    }
+
     const isDefault = req.body.isDefault === 'true' || req.body.isDefault === true;
     const filePath = buildResumePath(req.user.id, req.file.filename);
 
     await client.query('BEGIN');
 
     if (isDefault) {
-      await client.query('UPDATE resumes SET is_default = FALSE WHERE seeker_id = $1', [req.user.id]);
+      await client.query(
+        'UPDATE resumes SET is_default = FALSE WHERE seeker_id = $1 OR seeker_id = $2',
+        [seekerId, req.user.id]
+      );
     }
 
     const resumeResult = await client.query(
       `INSERT INTO resumes (seeker_id, file_name, file_path, file_size, is_default)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, seeker_id, file_name, file_path, file_size, is_default, uploaded_at`,
-      [req.user.id, req.file.originalname, filePath, req.file.size, isDefault]
+      [seekerId, req.file.originalname, filePath, req.file.size, isDefault]
     );
 
     if (!isDefault) {
-      const defaultCount = await client.query('SELECT COUNT(*)::INTEGER AS total FROM resumes WHERE seeker_id = $1 AND is_default = TRUE', [req.user.id]);
+      const defaultCount = await client.query(
+        'SELECT COUNT(*)::INTEGER AS total FROM resumes WHERE (seeker_id = $1 OR seeker_id = $2) AND is_default = TRUE',
+        [seekerId, req.user.id]
+      );
       const total = Number(defaultCount.rows?.[0]?.total ?? 0);
       if (total === 0) {
         await client.query('UPDATE resumes SET is_default = TRUE WHERE id = $1', [resumeResult.rows[0].id]);
@@ -284,9 +303,11 @@ async function getSeekerResume(req, res, next) {
 
   try {
     const { id } = req.params;
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const result = await client.query(
-      'SELECT id, seeker_id, file_name, file_path FROM resumes WHERE id = $1 AND seeker_id = $2 LIMIT 1',
-      [id, req.user.id]
+      'SELECT id, seeker_id, file_name, file_path FROM resumes WHERE id = $1 AND (seeker_id = $2 OR seeker_id = $3) LIMIT 1',
+      [id, seekerId, req.user.id]
     );
 
     const resume = result.rows[0];
@@ -332,9 +353,11 @@ async function deleteResume(req, res, next) {
 
   try {
     const { id } = req.params;
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const result = await client.query(
-      'SELECT id, file_path FROM resumes WHERE id = $1 AND seeker_id = $2 LIMIT 1',
-      [id, req.user.id]
+      'SELECT id, file_path FROM resumes WHERE id = $1 AND (seeker_id = $2 OR seeker_id = $3) LIMIT 1',
+      [id, seekerId, req.user.id]
     );
 
     const resume = result.rows[0];
@@ -349,7 +372,7 @@ async function deleteResume(req, res, next) {
     }
 
     await client.query('BEGIN');
-    await client.query('DELETE FROM resumes WHERE id = $1 AND seeker_id = $2', [id, req.user.id]);
+    await client.query('DELETE FROM resumes WHERE id = $1 AND (seeker_id = $2 OR seeker_id = $3)', [id, seekerId, req.user.id]);
     await client.query('COMMIT');
 
     const absolutePath = path.join(__dirname, '..', '..', resume.file_path);
@@ -373,6 +396,8 @@ async function listApplications(req, res, next) {
   const client = await pool.connect();
 
   try {
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const result = await client.query(
       `SELECT
         a.id,
@@ -395,9 +420,9 @@ async function listApplications(req, res, next) {
       INNER JOIN jobs j ON j.id = a.job_id
       INNER JOIN job_providers jp ON jp.id = j.provider_id
       LEFT JOIN resumes r ON r.id = a.resume_id
-      WHERE a.seeker_id = $1
+      WHERE (a.seeker_id = $1 OR a.seeker_id = $2)
       ORDER BY a.applied_at DESC`,
-      [req.user.id]
+      [seekerId, req.user.id]
     );
 
     return res.status(200).json({
@@ -418,9 +443,11 @@ async function withdrawApplication(req, res, next) {
 
   try {
     const { id } = req.params;
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const result = await client.query(
-      'SELECT id, status FROM applications WHERE id = $1 AND seeker_id = $2 LIMIT 1',
-      [id, req.user.id]
+      'SELECT id, status FROM applications WHERE id = $1 AND (seeker_id = $2 OR seeker_id = $3) LIMIT 1',
+      [id, seekerId, req.user.id]
     );
 
     const application = result.rows[0];
@@ -443,7 +470,7 @@ async function withdrawApplication(req, res, next) {
       });
     }
 
-    await client.query('DELETE FROM applications WHERE id = $1 AND seeker_id = $2', [id, req.user.id]);
+    await client.query('DELETE FROM applications WHERE id = $1 AND (seeker_id = $2 OR seeker_id = $3)', [id, seekerId, req.user.id]);
 
     return res.status(200).json({
       success: true,
@@ -462,6 +489,8 @@ async function listSavedJobs(req, res, next) {
   const client = await pool.connect();
 
   try {
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const result = await client.query(
       `SELECT
         sj.id,
@@ -481,9 +510,9 @@ async function listSavedJobs(req, res, next) {
       FROM saved_jobs sj
       INNER JOIN jobs j ON j.id = sj.job_id
       INNER JOIN job_providers jp ON jp.id = j.provider_id
-      WHERE sj.seeker_id = $1
+      WHERE (sj.seeker_id = $1 OR sj.seeker_id = $2)
       ORDER BY sj.saved_at DESC`,
-      [req.user.id]
+      [seekerId, req.user.id]
     );
 
     return res.status(200).json({
@@ -504,6 +533,8 @@ async function saveJob(req, res, next) {
 
   try {
     const jobId = Number(req.params.jobId);
+    const seekerId = await getOrCreateSeekerId(client, req.user);
+
     const jobResult = await client.query('SELECT id FROM jobs WHERE id = $1 LIMIT 1', [jobId]);
 
     if (!jobResult.rows[0]) {
@@ -519,7 +550,7 @@ async function saveJob(req, res, next) {
       `INSERT INTO saved_jobs (seeker_id, job_id)
        VALUES ($1, $2)
        ON CONFLICT (seeker_id, job_id) DO NOTHING`,
-      [req.user.id, jobId]
+      [seekerId, jobId]
     );
 
     return res.status(201).json({
@@ -540,10 +571,11 @@ async function removeSavedJob(req, res, next) {
 
   try {
     const jobId = Number(req.params.jobId);
+    const seekerId = await getOrCreateSeekerId(client, req.user);
 
     await client.query(
-      'DELETE FROM saved_jobs WHERE seeker_id = $1 AND job_id = $2',
-      [req.user.id, jobId]
+      'DELETE FROM saved_jobs WHERE (seeker_id = $1 OR seeker_id = $2) AND job_id = $3',
+      [seekerId, req.user.id, jobId]
     );
 
     return res.status(200).json({

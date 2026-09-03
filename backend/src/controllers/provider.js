@@ -654,8 +654,8 @@ async function listJobApplications(req, res, next) {
         COALESCE(JSON_AGG(DISTINCT job_skill.name) FILTER (WHERE job_skill.id IS NOT NULL), '[]'::json) AS job_skills
       FROM applications a
       INNER JOIN jobs j ON j.id = a.job_id
-      INNER JOIN users u ON u.id = a.seeker_id
-      INNER JOIN job_seekers js ON js.user_id = u.id
+      LEFT JOIN job_seekers js ON (js.id = a.seeker_id OR js.user_id = a.seeker_id)
+      LEFT JOIN users u ON (u.id = js.user_id OR u.id = a.seeker_id)
       LEFT JOIN resumes r ON r.id = a.resume_id
       LEFT JOIN seeker_skills ss ON ss.seeker_id = js.id
       LEFT JOIN skills s ON s.id = ss.skill_id
@@ -767,8 +767,8 @@ async function getApplication(req, res, next) {
         COALESCE(JSON_AGG(DISTINCT job_skill.name) FILTER (WHERE job_skill.id IS NOT NULL), '[]'::json) AS job_skills
       FROM applications a
       INNER JOIN jobs j ON j.id = a.job_id
-      INNER JOIN users u ON u.id = a.seeker_id
-      INNER JOIN job_seekers js ON js.user_id = u.id
+      LEFT JOIN job_seekers js ON (js.id = a.seeker_id OR js.user_id = a.seeker_id)
+      LEFT JOIN users u ON (u.id = js.user_id OR u.id = a.seeker_id)
       LEFT JOIN resumes r ON r.id = a.resume_id
       LEFT JOIN seeker_skills ss ON ss.seeker_id = js.id
       LEFT JOIN skills s ON s.id = ss.skill_id
@@ -846,12 +846,14 @@ async function updateApplicationStatus(req, res, next) {
         a.job_id,
         a.seeker_id,
         j.title,
+        COALESCE(u.id, js.user_id, a.seeker_id) AS seeker_user_id,
         u.email AS seeker_email,
         jp.company_name
       FROM applications a
       INNER JOIN jobs j ON j.id = a.job_id
       INNER JOIN job_providers jp ON jp.id = j.provider_id
-      INNER JOIN users u ON u.id = a.seeker_id
+      LEFT JOIN job_seekers js ON (js.id = a.seeker_id OR js.user_id = a.seeker_id)
+      LEFT JOIN users u ON (u.id = js.user_id OR u.id = a.seeker_id)
       WHERE a.id = $1 AND j.provider_id = $2
       LIMIT 1`,
       [req.params.id, providerId]
@@ -888,7 +890,7 @@ async function updateApplicationStatus(req, res, next) {
       `INSERT INTO notifications (user_id, type, message, is_read)
        VALUES ($1, $2, $3, FALSE)`,
       [
-        application.seeker_id,
+        application.seeker_user_id || application.seeker_id,
         'application_status_updated',
         `Your application for ${application.title} was updated to ${req.body.status}`,
       ]
@@ -947,7 +949,7 @@ async function getApplicationResume(req, res, next) {
        FROM applications a
        INNER JOIN jobs j ON j.id = a.job_id
        INNER JOIN resumes r ON r.id = a.resume_id
-       LEFT JOIN job_seekers js ON js.user_id = a.seeker_id
+       LEFT JOIN job_seekers js ON (js.id = a.seeker_id OR js.user_id = a.seeker_id)
        WHERE a.id = $1 AND j.provider_id = $2
        LIMIT 1`,
       [req.params.id, providerId]
