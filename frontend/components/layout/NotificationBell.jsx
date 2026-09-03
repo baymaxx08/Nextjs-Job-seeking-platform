@@ -31,18 +31,49 @@ function NotificationBell() {
         <div className="absolute right-0 top-12 z-40 w-96 rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-950">Notifications</h3>
-            <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-600 underline-offset-4 hover:underline">
-              Mark all read
-            </button>
+            {notifications.length > 0 ? (
+              <button
+                type="button"
+                onClick={markAllAsRead}
+                className="text-xs font-semibold text-slate-600 underline-offset-4 hover:underline"
+              >
+                Mark all read
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-3 max-h-96 space-y-2 overflow-y-auto">
-            {notifications.length ? notifications.map((notification) => (
-              <button key={notification.id} type="button" onClick={() => markAsRead(notification.id)} className={`w-full rounded-2xl border p-3 text-left text-sm transition ${notification.is_read ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-slate-900 bg-slate-950 text-white'}`}>
-                <p className="font-semibold">{notification.type}</p>
-                <p className="mt-1 text-xs leading-5 opacity-90">{notification.message}</p>
-              </button>
-            )) : <p className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">No notifications yet.</p>}
+            {notifications.length ? (
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className="group relative flex items-start justify-between gap-3 rounded-2xl border border-slate-900 bg-slate-950 p-3 text-left text-sm text-white transition hover:bg-slate-900"
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold capitalize text-amber-300">
+                      {notification.type.replace(/_/g, ' ')}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-300">{notification.message}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAsRead(notification.id);
+                    }}
+                    title="Dismiss notification"
+                    className="mt-0.5 rounded-full bg-white/10 px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-white/20 hover:text-white"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                <p>No new notifications.</p>
+                <p className="mt-1 text-xs text-slate-400">All caught up!</p>
+              </div>
+            )}
           </div>
         </div>
       ) : null}

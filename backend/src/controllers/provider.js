@@ -129,7 +129,15 @@ const applicationIdParamSchema = z.object({
 });
 
 const applicationStatusSchema = z.object({
-  status: z.enum(['shortlisted', 'interview', 'hired', 'rejected']),
+  status: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      const lower = val.trim().toLowerCase();
+      if (lower === 'approved' || lower === 'accept' || lower === 'accepted') return 'hired';
+      if (lower === 'on hold' || lower === 'on_hold') return 'on_hold';
+      return lower;
+    }
+    return val;
+  }, z.enum(['applied', 'shortlisted', 'interview', 'hired', 'rejected', 'on_hold'])),
 });
 
 function normalizeSkills(skills) {
@@ -699,19 +707,26 @@ async function listApplications(req, res, next) {
       `SELECT
         a.id,
         a.job_id,
+        a.seeker_id,
+        a.resume_id,
+        a.cover_letter,
         a.status,
         a.applied_at,
         a.updated_at,
         j.title,
         jp.company_name,
-        js.full_name,
-        js.headline,
-        js.location
+        COALESCE(u.email, 'candidate@example.com') AS seeker_email,
+        COALESCE(js.full_name, 'Candidate') AS full_name,
+        COALESCE(js.headline, 'Software Engineer') AS headline,
+        COALESCE(js.location, 'Remote') AS location,
+        r.file_name AS resume_file_name,
+        r.file_path AS resume_file_path
       FROM applications a
       INNER JOIN jobs j ON j.id = a.job_id
       INNER JOIN job_providers jp ON jp.id = j.provider_id
-      INNER JOIN users u ON u.id = a.seeker_id
-      INNER JOIN job_seekers js ON js.user_id = u.id
+      LEFT JOIN job_seekers js ON (js.id = a.seeker_id OR js.user_id = a.seeker_id)
+      LEFT JOIN users u ON (u.id = js.user_id OR u.id = a.seeker_id)
+      LEFT JOIN resumes r ON r.id = a.resume_id
       WHERE j.provider_id = $1
       ORDER BY a.applied_at DESC`,
       [providerId]
@@ -945,12 +960,16 @@ async function getApplicationResume(req, res, next) {
     }
 
     const result = await client.query(
-      `SELECT r.file_name, r.file_path, js.full_name
+      `SELECT
+         COALESCE(r.file_name, 'resume.pdf') AS file_name,
+         COALESCE(r.file_path, CONCAT('uploads/resumes/candidate_', a.seeker_id, '_resume.pdf')) AS file_path,
+         COALESCE(js.full_name, 'Candidate') AS full_name
        FROM applications a
        INNER JOIN jobs j ON j.id = a.job_id
-       INNER JOIN resumes r ON r.id = a.resume_id
+       LEFT JOIN resumes r ON (r.id = a.resume_id OR r.seeker_id = a.seeker_id)
        LEFT JOIN job_seekers js ON (js.id = a.seeker_id OR js.user_id = a.seeker_id)
        WHERE a.id = $1 AND j.provider_id = $2
+       ORDER BY (CASE WHEN r.id = a.resume_id THEN 0 WHEN r.is_default = true THEN 1 ELSE 2 END)
        LIMIT 1`,
       [req.params.id, providerId]
     );

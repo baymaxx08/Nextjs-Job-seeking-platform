@@ -19,16 +19,7 @@ function ProviderJobApplicationsPage() {
 
   const handleDownloadResume = async (applicationId, fileName) => {
     try {
-      const blob = await downloadApplicationResume(applicationId);
-      if (!blob) return;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName || 'candidate-resume.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      await downloadApplicationResume(applicationId, fileName || 'candidate-resume.pdf');
     } catch (err) {
       console.error('Failed to download resume:', err);
     }

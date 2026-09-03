@@ -33,6 +33,7 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
       applied: applications.filter((a) => a.status === 'applied').length,
       shortlisted: applications.filter((a) => a.status === 'shortlisted').length,
       interview: applications.filter((a) => a.status === 'interview').length,
+      on_hold: applications.filter((a) => a.status === 'on_hold').length,
       hired: applications.filter((a) => a.status === 'hired').length,
       rejected: applications.filter((a) => a.status === 'rejected').length,
     };
@@ -64,13 +65,14 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
   return (
     <div className="space-y-6">
       {/* Quick Status Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {[
           { key: '', label: 'Total', count: stats.total, color: 'border-slate-200 bg-white text-slate-900' },
           { key: 'applied', label: 'Applied', count: stats.applied, color: 'border-sky-200 bg-sky-50 text-sky-950' },
           { key: 'shortlisted', label: 'Shortlisted', count: stats.shortlisted, color: 'border-amber-200 bg-amber-50 text-amber-950' },
           { key: 'interview', label: 'Interview', count: stats.interview, color: 'border-indigo-200 bg-indigo-50 text-indigo-950' },
-          { key: 'hired', label: 'Selected / Hired', count: stats.hired, color: 'border-emerald-200 bg-emerald-50 text-emerald-950' },
+          { key: 'on_hold', label: 'On Hold', count: stats.on_hold, color: 'border-purple-200 bg-purple-50 text-purple-950' },
+          { key: 'hired', label: 'Selected / Approved', count: stats.hired, color: 'border-emerald-200 bg-emerald-50 text-emerald-950' },
           { key: 'rejected', label: 'Rejected', count: stats.rejected, color: 'border-rose-200 bg-rose-50 text-rose-950' },
         ].map((item) => (
           <button
@@ -157,52 +159,48 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
 
                       {/* Resume Download and View */}
                       <td className="py-4 pr-4 align-top">
-                        {application.resume_file_name ? (
-                          <div className="space-y-2">
-                            <div className="flex flex-col sm:flex-row items-start gap-1.5">
-                              <button
-                                id={`view-resume-btn-${application.id}`}
-                                type="button"
-                                onClick={() => setViewingCandidateResume(application)}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100 transition"
-                                title="View candidate resume in document viewer"
-                              >
-                                <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>View Document</span>
-                              </button>
+                        <div className="space-y-2">
+                          <div className="flex flex-col sm:flex-row items-start gap-1.5">
+                            <button
+                              id={`view-resume-btn-${application.id}`}
+                              type="button"
+                              onClick={() => setViewingCandidateResume(application)}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100 transition"
+                              title="View candidate resume in document viewer"
+                            >
+                              <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              <span>View Resume</span>
+                            </button>
 
+                            <button
+                              id={`download-resume-btn-${application.id}`}
+                              type="button"
+                              onClick={() => onDownloadResume(application.id, application.resume_file_name || 'Resume.pdf')}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100 transition"
+                              title="Download resume file"
+                            >
+                              <svg className="w-3.5 h-3.5 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                              </svg>
+                              <span className="truncate max-w-[100px]">{application.resume_file_name || 'Resume.pdf'}</span>
+                            </button>
+                          </div>
+
+                          {application.cover_letter && (
+                            <div>
                               <button
-                                id={`download-resume-btn-${application.id}`}
                                 type="button"
-                                onClick={() => onDownloadResume(application.id, application.resume_file_name)}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100 transition"
-                                title="Download resume file"
+                                onClick={() => setSelectedCandidate(application)}
+                                className="text-[11px] text-indigo-600 font-semibold hover:underline"
                               >
-                                <svg className="w-3.5 h-3.5 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                                </svg>
-                                <span className="truncate max-w-[100px]">{application.resume_file_name}</span>
+                                Read Cover Letter
                               </button>
                             </div>
-
-                            {application.cover_letter && (
-                              <div>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedCandidate(application)}
-                                  className="text-[11px] text-indigo-600 font-semibold hover:underline"
-                                >
-                                  Read Cover Letter
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">No resume attached</span>
-                        )}
+                          )}
+                        </div>
                       </td>
 
                       {/* Skills & Match */}
@@ -244,7 +242,7 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
                         <div className="flex flex-col items-end gap-2">
                           {/* Quick selection action buttons */}
                           <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            {application.status !== 'shortlisted' && application.status !== 'hired' && application.status !== 'rejected' && (
+                            {application.status !== 'shortlisted' && (
                               <button
                                 id={`action-shortlist-${application.id}`}
                                 type="button"
@@ -256,7 +254,7 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
                               </button>
                             )}
 
-                            {application.status !== 'interview' && application.status !== 'hired' && application.status !== 'rejected' && (
+                            {application.status !== 'interview' && (
                               <button
                                 id={`action-interview-${application.id}`}
                                 type="button"
@@ -268,6 +266,18 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
                               </button>
                             )}
 
+                            {application.status !== 'on_hold' && (
+                              <button
+                                id={`action-on-hold-${application.id}`}
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() => handleStatusChange(application.id, 'on_hold')}
+                                className="rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-800 hover:bg-purple-100 transition disabled:opacity-50"
+                              >
+                                On Hold
+                              </button>
+                            )}
+
                             {application.status !== 'hired' && (
                               <button
                                 id={`action-hire-${application.id}`}
@@ -276,7 +286,7 @@ function ApplicantTable({ applications = [], onUpdateStatus, onDownloadResume })
                                 onClick={() => handleStatusChange(application.id, 'hired')}
                                 className="rounded-lg bg-emerald-600 text-white px-2.5 py-1 text-xs font-semibold hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
                               >
-                                Select / Hire
+                                Approve
                               </button>
                             )}
 

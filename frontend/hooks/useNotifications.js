@@ -6,12 +6,14 @@ import { useNotificationStore } from '../store/notificationStore';
 function useNotifications() {
   const { notifications, unreadCount, setNotifications, markNotificationRead, markAllRead } = useNotificationStore();
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (includeRead = false) => {
     try {
       const response = await api.get('/notifications');
       const payload = response.data?.data || {};
-      setNotifications(payload.notifications || []);
-      return payload.notifications || [];
+      const all = payload.notifications || [];
+      const visible = includeRead ? all : all.filter((n) => !n.is_read);
+      setNotifications(visible);
+      return all;
     } catch {
       return [];
     }
@@ -20,18 +22,40 @@ function useNotifications() {
   const markAsRead = useCallback(async (id) => {
     try {
       await api.put(`/notifications/${id}/read`);
-      markNotificationRead(id);
     } catch {
       // ignore
+    } finally {
+      markNotificationRead(id);
     }
   }, [markNotificationRead]);
 
   const markAllAsRead = useCallback(async () => {
     try {
       await api.put('/notifications/read-all');
-      markAllRead();
     } catch {
       // ignore
+    } finally {
+      markAllRead();
+    }
+  }, [markAllRead]);
+
+  const deleteNotification = useCallback(async (id) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+    } catch {
+      // ignore
+    } finally {
+      markNotificationRead(id);
+    }
+  }, [markNotificationRead]);
+
+  const clearAllNotifications = useCallback(async () => {
+    try {
+      await api.delete('/notifications');
+    } catch {
+      // ignore
+    } finally {
+      markAllRead();
     }
   }, [markAllRead]);
 
@@ -41,6 +65,8 @@ function useNotifications() {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    clearAllNotifications,
   };
 }
 

@@ -193,6 +193,12 @@ function useProvider() {
 
     try {
       await api.put(`/provider/applications/${id}/status`, { status });
+      setApplications((current) =>
+        current.map((app) => (app.id === Number(id) || app.id === id ? { ...app, status } : app))
+      );
+      setAllApplications((current) =>
+        current.map((app) => (app.id === Number(id) || app.id === id ? { ...app, status } : app))
+      );
       return true;
     } catch (updateError) {
       setError(updateError?.response?.data?.message || 'Unable to update application status');

@@ -83,8 +83,56 @@ async function markAllNotificationsRead(req, res, next) {
   }
 }
 
+async function deleteNotification(req, res, next) {
+  const client = await pool.connect();
+
+  try {
+    await client.query(
+      `DELETE FROM notifications
+       WHERE id = $1 AND user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: null,
+      message: 'Notification deleted successfully',
+      errors: null,
+    });
+  } catch (error) {
+    return next(error);
+  } finally {
+    client.release();
+  }
+}
+
+async function clearAllNotifications(req, res, next) {
+  const client = await pool.connect();
+
+  try {
+    await client.query(
+      `DELETE FROM notifications
+       WHERE user_id = $1`,
+      [req.user.id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: null,
+      message: 'All notifications cleared successfully',
+      errors: null,
+    });
+  } catch (error) {
+    return next(error);
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   listNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
+  clearAllNotifications,
 };

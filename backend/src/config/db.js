@@ -890,6 +890,22 @@ function executeMockQuery(sql, params = []) {
     return { rows: [], rowCount: 1 };
   }
 
+  if (lower.startsWith('delete from notifications where id = $1 and user_id = $2')) {
+    const notifId = Number(params[0]);
+    const userId = Number(params[1]);
+    const idx = mockStore.notifications.findIndex((n) => n.id === notifId && n.user_id === userId);
+    if (idx !== -1) {
+      mockStore.notifications.splice(idx, 1);
+    }
+    return { rows: [], rowCount: 1 };
+  }
+
+  if (lower.startsWith('delete from notifications where user_id = $1')) {
+    const userId = Number(params[0]);
+    mockStore.notifications = mockStore.notifications.filter((n) => n.user_id !== userId);
+    return { rows: [], rowCount: 1 };
+  }
+
   if (lower.startsWith('insert into notifications')) {
     const [user_id, type, message] = params;
     const newNotif = {
@@ -1124,7 +1140,7 @@ CREATE TABLE IF NOT EXISTS applications (
   seeker_id BIGINT NOT NULL REFERENCES job_seekers(id) ON DELETE CASCADE,
   resume_id BIGINT REFERENCES resumes(id) ON DELETE SET NULL,
   cover_letter TEXT,
-  status TEXT NOT NULL DEFAULT 'applied' CHECK (status IN ('applied', 'shortlisted', 'interview', 'hired', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'applied' CHECK (status IN ('applied', 'shortlisted', 'interview', 'hired', 'rejected', 'on_hold')),
   applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT applications_unique_job_seeker UNIQUE (job_id, seeker_id)

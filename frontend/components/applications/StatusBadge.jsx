@@ -5,9 +5,19 @@ function StatusBadge({ status }) {
     interview: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
     hired: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
+    on_hold: 'bg-purple-50 text-purple-700 ring-purple-200',
   };
 
-  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Applied';
+  const labelMap = {
+    applied: 'Applied',
+    shortlisted: 'Shortlisted',
+    interview: 'Interview',
+    hired: 'Approved / Hired',
+    rejected: 'Rejected',
+    on_hold: 'On Hold',
+  };
+
+  const label = labelMap[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ') : 'Applied');
 
   return <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ${variants[status] || variants.applied}`}>{label}</span>;
 }

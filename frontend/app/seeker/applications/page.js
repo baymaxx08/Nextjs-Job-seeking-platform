@@ -19,9 +19,10 @@ function SeekerApplicationsPage() {
   const counts = useMemo(() => {
     return {
       all: applications.length,
-      active: applications.filter((a) => ['applied', 'shortlisted', 'interview'].includes(a.status)).length,
+      active: applications.filter((a) => ['applied', 'shortlisted', 'interview', 'on_hold'].includes(a.status)).length,
       shortlisted: applications.filter((a) => a.status === 'shortlisted').length,
       interview: applications.filter((a) => a.status === 'interview').length,
+      on_hold: applications.filter((a) => a.status === 'on_hold').length,
       hired: applications.filter((a) => a.status === 'hired').length,
       rejected: applications.filter((a) => a.status === 'rejected').length,
     };
@@ -31,7 +32,7 @@ function SeekerApplicationsPage() {
     return applications.filter((app) => {
       let matchesFilter = true;
       if (activeFilter === 'active') {
-        matchesFilter = ['applied', 'shortlisted', 'interview'].includes(app.status);
+        matchesFilter = ['applied', 'shortlisted', 'interview', 'on_hold'].includes(app.status);
       } else if (activeFilter !== 'all') {
         matchesFilter = app.status === activeFilter;
       }
@@ -81,8 +82,9 @@ function SeekerApplicationsPage() {
                 { key: 'active', label: 'In Progress', count: counts.active },
                 { key: 'shortlisted', label: 'Shortlisted', count: counts.shortlisted },
                 { key: 'interview', label: 'Interview', count: counts.interview },
-                { key: 'hired', label: 'Selected / Hired', count: counts.hired },
-                { key: 'rejected', label: 'Closed', count: counts.rejected },
+                { key: 'on_hold', label: 'On Hold', count: counts.on_hold },
+                { key: 'hired', label: 'Selected / Approved', count: counts.hired },
+                { key: 'rejected', label: 'Closed / Rejected', count: counts.rejected },
               ].map((tab) => (
                 <button
                   key={tab.key}

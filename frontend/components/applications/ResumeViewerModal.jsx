@@ -280,6 +280,18 @@ function ResumeViewerModal({
             <button
               type="button"
               disabled={updatingStatus}
+              onClick={() => handleStatusChange('on_hold')}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition border ${
+                candidate.status === 'on_hold'
+                  ? 'bg-purple-600 text-white border-purple-700'
+                  : 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100'
+              }`}
+            >
+              On Hold
+            </button>
+            <button
+              type="button"
+              disabled={updatingStatus}
               onClick={() => handleStatusChange('hired')}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition border ${
                 candidate.status === 'hired'
@@ -287,7 +299,7 @@ function ResumeViewerModal({
                   : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm'
               }`}
             >
-              Select / Hire
+              Approve / Hire
             </button>
             <button
               type="button"

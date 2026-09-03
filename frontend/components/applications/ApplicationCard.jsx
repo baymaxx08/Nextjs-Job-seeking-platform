@@ -29,13 +29,19 @@ function ApplicationCard({ application, onWithdraw }) {
         };
       case 'hired':
         return {
-          title: 'Offer / Selected',
-          text: 'Congratulations! You have been selected for this position.',
+          title: 'Offer / Approved',
+          text: 'Congratulations! Your application has been approved and you have been selected for this position.',
           badgeBg: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        };
+      case 'on_hold':
+        return {
+          title: 'Application On Hold',
+          text: 'The employer has placed your application on hold for upcoming review or team bandwidth.',
+          badgeBg: 'bg-purple-50 text-purple-900 border-purple-200',
         };
       case 'rejected':
         return {
-          title: 'Application Closed',
+          title: 'Application Closed / Rejected',
           text: 'The employer has concluded review for this role and decided to proceed with other applicants.',
           badgeBg: 'bg-rose-50 text-rose-900 border-rose-200',
         };
